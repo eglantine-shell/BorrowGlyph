@@ -4,12 +4,15 @@ export type GlyphRecord = {
   components: string[]
 }
 
+export type CharacterVariant = 'shared' | 'simplified' | 'traditional'
+
 export type DonorRecord = {
   char: string
   slot: string
   depth: number
   tier: number
   order: number
+  variant?: CharacterVariant
 }
 
 export type GlyphData = {
