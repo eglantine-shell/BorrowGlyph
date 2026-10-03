@@ -1,5 +1,4 @@
 import './style.css'
-import rawData from './generated/data.json'
 import { readFont, type FontFilter } from './font'
 import {
   getCandidatesForSlot,
@@ -9,7 +8,8 @@ import {
 import type { GlyphData, RankedDonor } from './types'
 import { VISUAL_DECOMPOSITIONS } from './visual-decompositions'
 
-const data = rawData as GlyphData
+let data: GlyphData
+let dataReady = false
 
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('Missing app root')
@@ -113,9 +113,8 @@ const variantButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-v
 const result = document.querySelector<HTMLElement>('#result')!
 const meta = document.querySelector<HTMLParagraphElement>('.data-meta')!
 
-meta.textContent = data.meta.glyphCount
-  ? `当前结构数据覆盖 ${data.meta.glyphCount.toLocaleString()} 个可拆汉字。`
-  : '当前为内置回退数据；重新构建项目后会生成完整字库。'
+meta.textContent = '正在载入结构数据…'
+searchButton.disabled = true
 
 function firstCharacter(value: string) {
   return Array.from(value.trim())[0] ?? ''
@@ -251,8 +250,9 @@ function buildSearchNode(
       component,
       desiredSlot,
       fontFilter?.supportsGlyph,
+      96,
     ),
-  )
+  ).slice(0, 24)
 
   // 人工视觉拆分只在“正常整块 donor 不够好用”时兜底。
   // 本字如果已被当前字体明确收录，直接使用本字；未载入字体时，
@@ -570,6 +570,8 @@ function renderResult(
 }
 
 function submit() {
+  if (!dataReady) return
+
   const char = firstCharacter(input.value)
   input.value = char
   render(char)
@@ -613,3 +615,24 @@ fontInput.addEventListener('change', async () => {
     fontNote.textContent = '这个字体文件暂时无法解析；不影响普通查询。'
   }
 })
+
+
+async function loadData() {
+  try {
+    const response = await fetch('./data.json', { cache: 'no-cache' })
+    if (!response.ok) throw new Error(`Failed to load data: ${response.status}`)
+
+    data = await response.json() as GlyphData
+    dataReady = true
+    searchButton.disabled = false
+    meta.textContent = data.meta.glyphCount
+      ? `当前结构数据覆盖 ${data.meta.glyphCount.toLocaleString()} 个可拆汉字。`
+      : '当前为内置回退数据；重新构建项目后会生成完整字库。'
+  } catch (error) {
+    console.error(error)
+    meta.textContent = '结构数据载入失败。'
+    result.innerHTML = '<div class="message">结构数据载入失败，请刷新页面重试。</div>'
+  }
+}
+
+void loadData()
