@@ -1,4 +1,5 @@
 import './style.css'
+import { canSystemRenderGlyph } from './display'
 import { readFont, type FontFilter } from './font'
 import {
   getCandidatesForSlot,
@@ -252,7 +253,11 @@ function buildSearchNode(
       fontFilter?.supportsGlyph,
       96,
     ),
-  ).slice(0, 24)
+  )
+    .filter((candidate) =>
+      candidate.inFont === true || canSystemRenderGlyph(candidate.char),
+    )
+    .slice(0, 24)
 
   // 人工视觉拆分只在“正常整块 donor 不够好用”时兜底。
   // 本字如果已被当前字体明确收录，直接使用本字；未载入字体时，
@@ -602,17 +607,33 @@ fontInput.addEventListener('change', async () => {
   const file = fontInput.files?.[0]
   if (!file) return
 
+  fontFilter?.dispose()
+  fontFilter = null
+  document.documentElement.style.setProperty(
+    '--glyph-font',
+    'var(--system-glyph-font)',
+  )
+
   fontLabel.textContent = '读取字体中…'
   try {
     fontFilter = await readFont(file)
+    document.documentElement.style.setProperty(
+      '--glyph-font',
+      `"${fontFilter.family}", var(--system-glyph-font)`,
+    )
     fontLabel.innerHTML = `${escapeHtml(fontFilter.fileName)} <em>已载入</em>`
-    fontNote.textContent = '字体仅在当前浏览器内解析，不会上传。候选中将优先显示该字体实际收录的字。'
+    fontNote.textContent = '字体仅在当前浏览器内解析，不会上传。字体中存在的候选优先；其余只保留当前系统能正常显示的字。'
     if (currentChar) render(currentChar)
   } catch (error) {
     console.error(error)
     fontFilter = null
+    document.documentElement.style.setProperty(
+      '--glyph-font',
+      'var(--system-glyph-font)',
+    )
     fontLabel.innerHTML = '＋ 载入字体 <em>可选</em>'
-    fontNote.textContent = '这个字体文件暂时无法解析；不影响普通查询。'
+    fontNote.textContent = '这个字体文件暂时无法解析；已改用当前系统可正常显示的候选。'
+    if (currentChar) render(currentChar)
   }
 })
 
