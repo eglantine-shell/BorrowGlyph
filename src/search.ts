@@ -35,8 +35,10 @@ function scoreDonor(
   const orderPenalty = Math.min(donor.order, 99999) / 10000
 
   if (donor.isSelf) {
+    // 本字免去“从别的字里截取”的步骤，但仍可能需要为目标位置压缩或拉伸。
+    // 因此同位 donor 优先于本字；本字再优先于近似位置／异位 donor。
     return {
-      score: fontPenalty + tierPenalty + orderPenalty - 120,
+      score: fontPenalty + 300 + tierPenalty + orderPenalty,
       exactPosition: false,
       sameAxis: false,
     }
