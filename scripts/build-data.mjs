@@ -42,6 +42,15 @@ function tokenize(ids) {
       }
     }
 
+    if (ids[i] === '{') {
+      const end = ids.indexOf('}', i)
+      if (end !== -1) {
+        tokens.push(ids.slice(i, end + 1))
+        i = end + 1
+        continue
+      }
+    }
+
     const cp = ids.codePointAt(i)
     const char = String.fromCodePoint(cp)
     i += char.length
@@ -232,7 +241,27 @@ function buildDonors(parsed, ranking, variantOf) {
       a.depth - b.depth ||
       a.char.localeCompare(b.char, 'zh-Hans-CN')
     )
-    donors[component] = ranked.slice(0, 48)
+
+    const selfCommon = ranking.get(component) ?? {
+      tier: 4,
+      order: 100000 + (component.codePointAt(0) ?? 0),
+    }
+    const selfDonor =
+      [...component].length === 1 && !IDC.has(component)
+        ? {
+            char: component,
+            slot: 'self',
+            depth: 0,
+            tier: selfCommon.tier,
+            order: selfCommon.order,
+            variant: variantOf(component),
+            isSelf: true,
+          }
+        : null
+
+    donors[component] = selfDonor
+      ? [selfDonor, ...ranked.filter((item) => item.char !== component)].slice(0, 48)
+      : ranked.slice(0, 48)
   }
 
   return donors
