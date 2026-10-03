@@ -6,8 +6,10 @@
   "scripts": {
     "data": "node scripts/build-data.mjs",
     "dev": "npm run data && vite",
-    "build": "npm run data && tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build": "npm run data && npm run test:ci && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "npm run data && node --test tests/*.test.mjs",
+    "test:ci": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "opentype.js": "^1.3.4"
