@@ -36,9 +36,10 @@ function scoreDonor(
 
   if (donor.isSelf) {
     // 本字免去“从别的字里截取”的步骤，但仍可能需要为目标位置压缩或拉伸。
-    // 因此同位 donor 优先于本字；本字再优先于近似位置／异位 donor。
+    // 因此常见的同位 donor 优先于本字；本字又通常优先于近似位置／异位 donor。
+    // 极生僻的同位 donor 则可能被常用本字反超。
     return {
-      score: fontPenalty + 300 + tierPenalty + orderPenalty,
+      score: fontPenalty + 180 + tierPenalty + orderPenalty,
       exactPosition: false,
       sameAxis: false,
     }
