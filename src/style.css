@@ -1,4 +1,13 @@
 :root {
+  --glyph-font: "Songti SC", "STSong",
+    "Noto Serif CJK SC", "Noto Serif SC",
+    "Source Han Serif SC", "Source Han Serif CN",
+    "PingFang SC", "PingFang TC", "PingFang HK",
+    "Noto Sans CJK SC", "Source Han Sans SC",
+    "Hiragino Sans GB", "Hiragino Kaku Gothic ProN",
+    "Microsoft YaHei", "SimSun-ExtB", "MingLiU-ExtB",
+    "BabelStone Han", "HanaMinA", "HanaMinB",
+    serif;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   color: #171714;
   background: #f2f0e9;
@@ -50,7 +59,7 @@ a { color: inherit; }
   height: 42px;
   border: 1px solid #171714;
   border-radius: 50%;
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 22px;
 }
 
@@ -126,7 +135,7 @@ a { color: inherit; }
   border: 0;
   outline: 0;
   background: transparent;
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 28px;
 }
 
@@ -224,7 +233,7 @@ a { color: inherit; }
 }
 
 .empty-state span {
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 72px;
   opacity: .24;
 }
@@ -256,7 +265,7 @@ a { color: inherit; }
   border: 1px solid #171714;
   border-radius: 18px;
   background: #fff;
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 104px;
   line-height: 1;
 }
@@ -316,7 +325,7 @@ a { color: inherit; }
 }
 
 .recipe-part b {
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 40px;
   font-weight: 500;
 }
@@ -366,7 +375,7 @@ a { color: inherit; }
   height: 64px;
   border-radius: 12px;
   background: #fff;
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 34px;
   box-shadow: inset 0 0 0 1px rgba(23,23,20,.1);
 }
@@ -400,7 +409,7 @@ a { color: inherit; }
 
 .donor b {
   display: block;
-  font-family: "Songti SC", "STSong", serif;
+  font-family: var(--glyph-font);
   font-size: 40px;
   font-weight: 500;
 }
