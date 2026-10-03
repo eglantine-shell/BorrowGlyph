@@ -1,7 +1,11 @@
 import './style.css'
 import rawData from './generated/data.json'
 import { readFont, type FontFilter } from './font'
-import { getCandidates, positionName, structureLabel } from './search'
+import {
+  getCandidatesForSlot,
+  positionName,
+  structureLabel,
+} from './search'
 import type { GlyphData, RankedDonor } from './types'
 
 const data = rawData as GlyphData
@@ -9,10 +13,40 @@ const data = rawData as GlyphData
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('Missing app root')
 
+type IdsNode = {
+  token: string
+  children: IdsNode[]
+}
+
+type ComponentSearchNode = {
+  key: string
+  component: string
+  desiredSlot: string
+  candidates: RankedDonor[]
+  children: ComponentSearchNode[]
+  splitOperator?: string
+  depth: number
+}
+
+const IDC_ARITY: Record<string, number> = {
+  '⿰': 2,
+  '⿱': 2,
+  '⿲': 3,
+  '⿳': 3,
+  '⿴': 2,
+  '⿵': 2,
+  '⿶': 2,
+  '⿷': 2,
+  '⿸': 2,
+  '⿹': 2,
+  '⿺': 2,
+  '⿻': 2,
+}
+
 let currentChar = ''
 let fontFilter: FontFilter | null = null
-let expanded = new Set<number>()
-let selected = new Map<number, RankedDonor>()
+let expanded = new Set<string>()
+let selected = new Map<string, RankedDonor>()
 
 app.innerHTML = `
   <div class="shell">
@@ -88,8 +122,135 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (ch) => entities[ch] ?? ch)
 }
 
-function donorMarkup(candidate: RankedDonor, index: number, componentIndex: number) {
-  const active = selected.get(componentIndex)?.char === candidate.char
+function tokenizeIds(ids: string) {
+  const tokens: string[] = []
+
+  for (let i = 0; i < ids.length;) {
+    if (ids[i] === '&') {
+      const end = ids.indexOf(';', i)
+      if (end !== -1) {
+        tokens.push(ids.slice(i, end + 1))
+        i = end + 1
+        continue
+      }
+    }
+
+    const codePoint = ids.codePointAt(i)
+    if (codePoint === undefined) break
+
+    const char = String.fromCodePoint(codePoint)
+    i += char.length
+
+    if (/\s/.test(char)) continue
+    tokens.push(char)
+  }
+
+  return tokens
+}
+
+function parseIdsNode(tokens: string[], cursor = { value: 0 }): IdsNode | null {
+  const token = tokens[cursor.value++]
+  if (!token) return null
+
+  const arity = IDC_ARITY[token]
+  if (!arity) return { token, children: [] }
+
+  const children: IdsNode[] = []
+  for (let index = 0; index < arity; index += 1) {
+    const child = parseIdsNode(tokens, cursor)
+    if (!child) return null
+    children.push(child)
+  }
+
+  return { token, children }
+}
+
+function serializeIdsNode(node: IdsNode): string {
+  return node.children.length
+    ? node.token + node.children.map(serializeIdsNode).join('')
+    : node.token
+}
+
+function decompositionOf(component: string) {
+  if (IDC_ARITY[Array.from(component)[0] ?? '']) {
+    const tree = parseIdsNode(tokenizeIds(component))
+    if (tree && IDC_ARITY[tree.token] && tree.children.length) {
+      return {
+        operator: tree.token,
+        components: tree.children.map(serializeIdsNode),
+      }
+    }
+  }
+
+  const glyph = data.glyphs[component]
+  if (!glyph || !glyph.operator || !glyph.components.length) return null
+
+  return {
+    operator: glyph.operator,
+    components: glyph.components,
+  }
+}
+
+function buildSearchNode(
+  component: string,
+  desiredSlot: string,
+  key: string,
+  depth = 0,
+  ancestors = new Set<string>(),
+): ComponentSearchNode {
+  const candidates = getCandidatesForSlot(
+    data,
+    currentChar,
+    component,
+    desiredSlot,
+    fontFilter?.supportsGlyph,
+  )
+
+  const node: ComponentSearchNode = {
+    key,
+    component,
+    desiredSlot,
+    candidates,
+    children: [],
+    depth,
+  }
+
+  if (candidates.length || depth >= 4 || ancestors.has(component)) {
+    return node
+  }
+
+  const decomposition = decompositionOf(component)
+  if (!decomposition) return node
+
+  const nextAncestors = new Set(ancestors)
+  nextAncestors.add(component)
+
+  node.splitOperator = decomposition.operator
+  node.children = decomposition.components.map((child, index) =>
+    buildSearchNode(
+      child,
+      `${decomposition.operator}:${index}`,
+      `${key}.${index}`,
+      depth + 1,
+      nextAncestors,
+    ),
+  )
+
+  return node
+}
+
+function initializeSelections(nodes: ComponentSearchNode[]) {
+  for (const node of nodes) {
+    if (node.candidates[0]) {
+      selected.set(node.key, node.candidates[0])
+      continue
+    }
+    initializeSelections(node.children)
+  }
+}
+
+function donorMarkup(candidate: RankedDonor, index: number, nodeKey: string) {
+  const active = selected.get(nodeKey)?.char === candidate.char
   const fontBadge =
     fontFilter && candidate.inFont
       ? '<span class="font-hit">字体有字</span>'
@@ -106,7 +267,7 @@ function donorMarkup(candidate: RankedDonor, index: number, componentIndex: numb
     <button
       class="donor ${active ? 'is-active' : ''}"
       type="button"
-      data-component="${componentIndex}"
+      data-node-key="${escapeHtml(nodeKey)}"
       data-candidate="${index}"
       aria-pressed="${active}"
     >
@@ -116,14 +277,38 @@ function donorMarkup(candidate: RankedDonor, index: number, componentIndex: numb
   `
 }
 
-function recommendationMarkup(glyph: NonNullable<GlyphData['glyphs'][string]>) {
-  const parts = glyph.components.map((component, index) => {
-    const choice = selected.get(index)
-    if (!choice) return `<span class="missing-choice">?</span>`
+function collectRecipeNodes(nodes: ComponentSearchNode[]): ComponentSearchNode[] {
+  const result: ComponentSearchNode[] = []
+
+  for (const node of nodes) {
+    if (node.candidates.length) {
+      result.push(node)
+    } else if (node.children.length) {
+      result.push(...collectRecipeNodes(node.children))
+    } else {
+      result.push(node)
+    }
+  }
+
+  return result
+}
+
+function recommendationMarkup(nodes: ComponentSearchNode[]) {
+  const parts = collectRecipeNodes(nodes).map((node) => {
+    const choice = selected.get(node.key)
+    if (!choice) {
+      return `
+        <span class="recipe-part recipe-unresolved">
+          <b>?</b>
+          <small>缺「${escapeHtml(node.component)}」</small>
+        </span>
+      `
+    }
+
     return `
       <span class="recipe-part">
         <b>${escapeHtml(choice.char)}</b>
-        <small>${escapeHtml(positionName(choice.slot, component))}</small>
+        <small>取「${escapeHtml(node.component)}」</small>
       </span>
     `
   })
@@ -134,8 +319,82 @@ function recommendationMarkup(glyph: NonNullable<GlyphData['glyphs'][string]>) {
         <p class="section-kicker">当前拼合方案</p>
         <div class="recipe">${parts.join('<i>＋</i>')}</div>
       </div>
-      <p class="recipe-tip">候选字只负责提供部件；实际拼接时仍需根据字体字形调整裁切、缩放和位置。</p>
+      <p class="recipe-tip">找不到整块 donor 时会自动继续拆分。实际拼接仍需根据字体字形调整裁切、缩放和位置。</p>
     </aside>
+  `
+}
+
+function renderSearchNode(node: ComponentSearchNode, label: string): string {
+  const shown = expanded.has(node.key)
+    ? node.candidates
+    : node.candidates.slice(0, 6)
+
+  const glyphClass = IDC_ARITY[Array.from(node.component)[0] ?? '']
+    ? 'component-glyph is-ids'
+    : 'component-glyph'
+
+  if (node.candidates.length) {
+    return `
+      <section class="component-card ${node.depth ? 'is-nested' : ''}">
+        <header>
+          <div class="${glyphClass}">${escapeHtml(node.component)}</div>
+          <div>
+            <p class="section-kicker">${escapeHtml(label)}</p>
+            <h3>${escapeHtml(positionName(node.desiredSlot, node.component))}</h3>
+          </div>
+        </header>
+
+        <div class="donors">
+          ${shown.map((candidate, index) => donorMarkup(candidate, index, node.key)).join('')}
+        </div>
+
+        ${node.candidates.length > 6
+          ? `<button class="more-button" type="button" data-expand="${escapeHtml(node.key)}">${expanded.has(node.key) ? '收起' : `更多候选 · ${node.candidates.length}`}</button>`
+          : ''}
+      </section>
+    `
+  }
+
+  if (node.children.length) {
+    const splitNames = node.children.map((child) => child.component).join(' ＋ ')
+
+    return `
+      <section class="component-card recursive-card ${node.depth ? 'is-nested' : ''}">
+        <header>
+          <div class="${glyphClass}">${escapeHtml(node.component)}</div>
+          <div>
+            <p class="section-kicker">${escapeHtml(label)}</p>
+            <h3>${escapeHtml(positionName(node.desiredSlot, node.component))}</h3>
+          </div>
+        </header>
+
+        <p class="split-note">
+          找不到可直接借用的「${escapeHtml(node.component)}」，继续拆为
+          <strong>${escapeHtml(splitNames)}</strong>。
+        </p>
+
+        <div class="nested-components">
+          ${node.children
+            .map((child, index) =>
+              renderSearchNode(child, `继续拆分 · 部件 ${index + 1}`),
+            )
+            .join('')}
+        </div>
+      </section>
+    `
+  }
+
+  return `
+    <section class="component-card unresolved-card ${node.depth ? 'is-nested' : ''}">
+      <header>
+        <div class="${glyphClass}">${escapeHtml(node.component)}</div>
+        <div>
+          <p class="section-kicker">${escapeHtml(label)}</p>
+          <h3>${escapeHtml(positionName(node.desiredSlot, node.component))}</h3>
+        </div>
+      </header>
+      <p class="no-donors">已经拆到当前数据可识别的最深层，仍未找到可用候选。</p>
+    </section>
   `
 }
 
@@ -160,26 +419,21 @@ function render(char: string) {
     return
   }
 
-  const candidateSets = glyph.components.map((component, index) =>
-    getCandidates(
-      data,
-      char,
+  const nodes = glyph.components.map((component, index) =>
+    buildSearchNode(
       component,
-      index,
-      fontFilter?.supportsGlyph,
+      `${glyph.operator}:${index}`,
+      String(index),
     ),
   )
 
-  candidateSets.forEach((set, index) => {
-    if (set[0]) selected.set(index, set[0])
-  })
-
-  renderResult(glyph, candidateSets)
+  initializeSelections(nodes)
+  renderResult(glyph, nodes)
 }
 
 function renderResult(
   glyph: GlyphData['glyphs'][string],
-  candidateSets: RankedDonor[][],
+  nodes: ComponentSearchNode[],
 ) {
   result.innerHTML = `
     <div class="target-card">
@@ -194,58 +448,54 @@ function renderResult(
       </div>
     </div>
 
-    ${recommendationMarkup(glyph)}
+    ${recommendationMarkup(nodes)}
 
     <div class="components">
-      ${glyph.components.map((component, componentIndex) => {
-        const candidates = candidateSets[componentIndex]
-        const shown = expanded.has(componentIndex) ? candidates : candidates.slice(0, 6)
-
-        return `
-          <section class="component-card">
-            <header>
-              <div class="component-glyph">${escapeHtml(component)}</div>
-              <div>
-                <p class="section-kicker">部件 ${componentIndex + 1}</p>
-                <h3>${escapeHtml(positionName(`${glyph.operator}:${componentIndex}`, component))}</h3>
-              </div>
-            </header>
-
-            ${candidates.length
-              ? `
-                <div class="donors">
-                  ${shown.map((candidate, index) => donorMarkup(candidate, index, componentIndex)).join('')}
-                </div>
-                ${candidates.length > 6
-                  ? `<button class="more-button" type="button" data-expand="${componentIndex}">${expanded.has(componentIndex) ? '收起' : `更多候选 · ${candidates.length}`}</button>`
-                  : ''}
-              `
-              : '<p class="no-donors">没有找到可用候选。可以尝试继续拆这个部件，后续版本会补这一层。</p>'}
-          </section>
-        `
-      }).join('')}
+      ${nodes
+        .map((node, index) => renderSearchNode(node, `部件 ${index + 1}`))
+        .join('')}
     </div>
   `
 
+  const nodeByKey = new Map<string, ComponentSearchNode>()
+
+  const indexNodes = (items: ComponentSearchNode[]) => {
+    for (const item of items) {
+      nodeByKey.set(item.key, item)
+      indexNodes(item.children)
+    }
+  }
+  indexNodes(nodes)
+
   result.querySelectorAll<HTMLButtonElement>('.donor').forEach((button) => {
     button.addEventListener('click', () => {
-      const componentIndex = Number(button.dataset.component)
+      const nodeKey = button.dataset.nodeKey
       const candidateIndex = Number(button.dataset.candidate)
-      const fullSet = candidateSets[componentIndex]
-      const visibleSet = expanded.has(componentIndex) ? fullSet : fullSet.slice(0, 6)
+      if (!nodeKey) return
+
+      const node = nodeByKey.get(nodeKey)
+      if (!node) return
+
+      const visibleSet = expanded.has(nodeKey)
+        ? node.candidates
+        : node.candidates.slice(0, 6)
       const picked = visibleSet[candidateIndex]
       if (!picked) return
-      selected.set(componentIndex, picked)
-      renderResult(glyph, candidateSets)
+
+      selected.set(nodeKey, picked)
+      renderResult(glyph, nodes)
     })
   })
 
   result.querySelectorAll<HTMLButtonElement>('[data-expand]').forEach((button) => {
     button.addEventListener('click', () => {
-      const index = Number(button.dataset.expand)
-      if (expanded.has(index)) expanded.delete(index)
-      else expanded.add(index)
-      renderResult(glyph, candidateSets)
+      const key = button.dataset.expand
+      if (!key) return
+
+      if (expanded.has(key)) expanded.delete(key)
+      else expanded.add(key)
+
+      renderResult(glyph, nodes)
     })
   })
 }
