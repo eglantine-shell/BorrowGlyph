@@ -163,7 +163,27 @@ function collectOccurrences(node, wanted, rootOperator, path = [], output = []) 
   return output
 }
 
-function buildDonors(parsed, ranking) {
+function buildVariantClassifier(traditionalMap) {
+  const traditionalForms = new Set()
+  const simplifiedForms = new Set()
+
+  for (const [traditional, simplified] of Object.entries(traditionalMap)) {
+    if (traditional === simplified) continue
+    traditionalForms.add(traditional)
+    simplifiedForms.add(simplified)
+  }
+
+  return (char) => {
+    const isTraditional = traditionalForms.has(char)
+    const isSimplified = simplifiedForms.has(char)
+
+    if (isTraditional && !isSimplified) return 'traditional'
+    if (isSimplified && !isTraditional) return 'simplified'
+    return 'shared'
+  }
+}
+
+function buildDonors(parsed, ranking, variantOf) {
   const componentSet = new Set()
   for (const glyph of Object.values(parsed)) {
     glyph.components.forEach((component) => componentSet.add(component))
@@ -183,6 +203,7 @@ function buildDonors(parsed, ranking) {
           depth: nextPath.length,
           tier: common.tier,
           order: common.order,
+          variant: variantOf(char),
         })
       }
 
@@ -243,7 +264,8 @@ async function main() {
     const standard = JSON.parse(standardText)
     const traditionalMap = JSON.parse(traditionalText)
     const ranking = commonRanking(standard, traditionalMap)
-    const donors = buildDonors(parsed, ranking)
+    const variantOf = buildVariantClassifier(traditionalMap)
+    const donors = buildDonors(parsed, ranking, variantOf)
 
     const glyphs = Object.fromEntries(
       Object.entries(parsed).map(([char, glyph]) => [
