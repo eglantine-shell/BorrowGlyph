@@ -13,6 +13,7 @@ export type DonorRecord = {
   tier: number
   order: number
   variant?: CharacterVariant
+  isSelf?: boolean
 }
 
 export type GlyphData = {
