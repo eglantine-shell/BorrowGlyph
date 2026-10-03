@@ -1,0 +1,250 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+
+const OUT = resolve('src/generated/data.json')
+const IDS_URL = 'https://raw.githubusercontent.com/hfhchan/ids/main/release/ids-20240112.txt'
+const STANDARD_URL = 'https://raw.githubusercontent.com/jaywcjlove/table-of-general-standard-chinese-characters/main/data/characters.min.json'
+const TRAD_URL = 'https://raw.githubusercontent.com/jaywcjlove/table-of-general-standard-chinese-characters/main/data/traditional.convert.json'
+
+const IDC_ARITY = {
+  '⿰': 2, '⿱': 2, '⿲': 3, '⿳': 3,
+  '⿴': 2, '⿵': 2, '⿶': 2, '⿷': 2,
+  '⿸': 2, '⿹': 2, '⿺': 2, '⿻': 2,
+}
+
+const IDC = new Set(Object.keys(IDC_ARITY))
+
+async function fetchText(url) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`${response.status} while fetching ${url}`)
+  return response.text()
+}
+
+function tokenize(ids) {
+  const tokens = []
+  for (let i = 0; i < ids.length;) {
+    if (ids[i] === '&') {
+      const end = ids.indexOf(';', i)
+      if (end !== -1) {
+        tokens.push(ids.slice(i, end + 1))
+        i = end + 1
+        continue
+      }
+    }
+
+    const cp = ids.codePointAt(i)
+    const char = String.fromCodePoint(cp)
+    i += char.length
+
+    if (/\s/.test(char)) continue
+    const code = char.codePointAt(0)
+    if ((code >= 0xfe00 && code <= 0xfe0f) || (code >= 0xe0100 && code <= 0xe01ef)) continue
+    tokens.push(char)
+  }
+  return tokens
+}
+
+function parseNode(tokens, cursor = { value: 0 }) {
+  const token = tokens[cursor.value++]
+  if (!token) return null
+
+  const arity = IDC_ARITY[token]
+  if (!arity) return { token, children: [] }
+
+  const children = []
+  for (let i = 0; i < arity; i++) {
+    const child = parseNode(tokens, cursor)
+    if (!child) return null
+    children.push(child)
+  }
+  return { token, children }
+}
+
+function serialize(node) {
+  if (!node.children.length) return node.token
+  return node.token + node.children.map(serialize).join('')
+}
+
+function cleanIds(value) {
+  return value
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\([^)]*\)$/g, '')
+    .trim()
+    .split(/\s+/)[0]
+}
+
+function charFromLine(parts) {
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (/^U\+[0-9A-Fa-f]+$/.test(trimmed)) {
+      return String.fromCodePoint(Number.parseInt(trimmed.slice(2), 16))
+    }
+  }
+
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if ([...trimmed].length === 1 && !IDC.has(trimmed)) return trimmed
+  }
+
+  return ''
+}
+
+function parseIdsFile(text) {
+  const glyphs = {}
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#') || line.startsWith(';')) continue
+
+    const parts = rawLine.split('\t').map((part) => part.trim()).filter(Boolean)
+    const char = charFromLine(parts)
+    if (!char || glyphs[char]) continue
+
+    const idsField = parts.find((part) => [...part].some((ch) => IDC.has(ch)))
+    if (!idsField) continue
+
+    const ids = cleanIds(idsField)
+    const tree = parseNode(tokenize(ids))
+    if (!tree || !IDC.has(tree.token) || tree.children.length < 2) continue
+
+    const components = tree.children.map(serialize)
+    if (components.some((part) => !part)) continue
+
+    glyphs[char] = {
+      ids: serialize(tree),
+      operator: tree.token,
+      components,
+      tree,
+    }
+  }
+
+  return glyphs
+}
+
+function commonRanking(standard, traditionalMap) {
+  const ranking = new Map()
+
+  standard.forEach((char, index) => {
+    const tier = index < 3500 ? 1 : index < 6500 ? 2 : 3
+    ranking.set(char, { tier, order: index })
+  })
+
+  for (const [traditional, simplified] of Object.entries(traditionalMap)) {
+    const base = ranking.get(simplified)
+    if (base && !ranking.has(traditional)) {
+      ranking.set(traditional, { tier: base.tier, order: base.order + 0.25 })
+    }
+  }
+
+  return ranking
+}
+
+function collectOccurrences(node, wanted, rootOperator, path = [], output = []) {
+  node.children.forEach((child, index) => {
+    const nextPath = [...path, `${node.token}:${index}`]
+    if (serialize(child) === wanted) {
+      output.push({
+        slot: nextPath[0] ?? `${rootOperator}:${index}`,
+        depth: nextPath.length,
+      })
+    }
+    collectOccurrences(child, wanted, rootOperator, nextPath, output)
+  })
+  return output
+}
+
+function buildDonors(parsed, ranking) {
+  const componentSet = new Set()
+  for (const glyph of Object.values(parsed)) {
+    glyph.components.forEach((component) => componentSet.add(component))
+  }
+
+  const donors = Object.fromEntries([...componentSet].map((component) => [component, []]))
+
+  for (const [char, glyph] of Object.entries(parsed)) {
+    const common = ranking.get(char) ?? {
+      tier: 4,
+      order: 100000 + (char.codePointAt(0) ?? 0),
+    }
+
+    for (const component of componentSet) {
+      if (!glyph.ids.includes(component)) continue
+      const occurrences = collectOccurrences(glyph.tree, component, glyph.operator)
+      if (!occurrences.length) continue
+
+      const best = occurrences.sort((a, b) => a.depth - b.depth)[0]
+      donors[component].push({
+        char,
+        slot: best.slot,
+        depth: best.depth,
+        tier: common.tier,
+        order: common.order,
+      })
+    }
+  }
+
+  for (const [component, list] of Object.entries(donors)) {
+    list.sort((a, b) =>
+      a.tier - b.tier ||
+      a.order - b.order ||
+      a.depth - b.depth ||
+      a.char.localeCompare(b.char, 'zh-Hans-CN')
+    )
+    donors[component] = list.slice(0, 48)
+  }
+
+  return donors
+}
+
+async function main() {
+  await mkdir(dirname(OUT), { recursive: true })
+
+  try {
+    const [idsText, standardText, traditionalText] = await Promise.all([
+      fetchText(IDS_URL),
+      fetchText(STANDARD_URL),
+      fetchText(TRAD_URL),
+    ])
+
+    const parsed = parseIdsFile(idsText)
+    const standard = JSON.parse(standardText)
+    const traditionalMap = JSON.parse(traditionalText)
+    const ranking = commonRanking(standard, traditionalMap)
+    const donors = buildDonors(parsed, ranking)
+
+    const glyphs = Object.fromEntries(
+      Object.entries(parsed).map(([char, glyph]) => [
+        char,
+        {
+          ids: glyph.ids,
+          operator: glyph.operator,
+          components: glyph.components,
+        },
+      ]),
+    )
+
+    const payload = {
+      meta: {
+        generatedAt: new Date().toISOString(),
+        idsSource: 'hfhchan/ids release ids-20240112 (MIT)',
+        commonSource: 'jaywcjlove/table-of-general-standard-chinese-characters (MIT)',
+        glyphCount: Object.keys(glyphs).length,
+      },
+      glyphs,
+      donors,
+    }
+
+    await writeFile(OUT, JSON.stringify(payload))
+    console.log(`BorrowGlyph data: ${Object.keys(glyphs).length} glyphs, ${Object.keys(donors).length} component indexes.`)
+  } catch (error) {
+    try {
+      await readFile(OUT, 'utf8')
+      console.warn('Could not refresh remote data; using the checked-in fallback data.')
+      console.warn(error)
+    } catch {
+      throw error
+    }
+  }
+}
+
+main()

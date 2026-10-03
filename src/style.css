@@ -1,0 +1,466 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: #171714;
+  background: #f2f0e9;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 82% 4%, rgba(255,255,255,.95), transparent 34rem),
+    #f2f0e9;
+}
+
+button, input { font: inherit; }
+
+button { color: inherit; }
+
+a { color: inherit; }
+
+.shell {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding-bottom: 48px;
+}
+
+.masthead {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(23,23,20,.14);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #171714;
+  border-radius: 50%;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 22px;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+  line-height: 1.1;
+}
+
+.brand strong { font-size: 16px; letter-spacing: .02em; }
+.brand small { margin-top: 4px; color: #77746b; font-size: 12px; }
+
+.repo-link {
+  font-size: 13px;
+  text-underline-offset: 4px;
+}
+
+.hero {
+  padding: 86px 0 68px;
+  max-width: 900px;
+}
+
+.eyebrow,
+.section-kicker {
+  margin: 0 0 12px;
+  color: #77746b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  max-width: 760px;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: clamp(42px, 7vw, 78px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -.04em;
+}
+
+.intro {
+  max-width: 720px;
+  margin: 28px 0 0;
+  color: #5f5c55;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.query-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 40px;
+}
+
+.query-box {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #171714;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 7px 30px rgba(38,37,31,.05);
+}
+
+.query-box input {
+  min-width: 0;
+  flex: 1;
+  padding: 18px 20px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 28px;
+}
+
+.query-box input::placeholder {
+  color: #aaa69b;
+}
+
+.query-box button {
+  width: 88px;
+  border: 0;
+  background: #171714;
+  color: #f7f5ef;
+  cursor: pointer;
+}
+
+.font-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 180px;
+  padding: 0 18px;
+  border: 1px solid rgba(23,23,20,.28);
+  border-radius: 12px;
+  background: rgba(255,255,255,.42);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.font-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.font-button span {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.font-button em {
+  margin-left: 6px;
+  color: #8a867c;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.font-note {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: #8a867c;
+  font-size: 12px;
+}
+
+.result {
+  border-top: 1px solid rgba(23,23,20,.14);
+  padding-top: 48px;
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  border: 1px dashed rgba(23,23,20,.18);
+  border-radius: 20px;
+  color: #8f8b81;
+}
+
+.empty-state span {
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 72px;
+  opacity: .24;
+}
+
+.empty-state p { margin-top: -70px; font-size: 13px; }
+
+.message {
+  padding: 34px;
+  border: 1px solid rgba(23,23,20,.14);
+  border-radius: 16px;
+  background: rgba(255,255,255,.4);
+  line-height: 1.8;
+}
+
+.message p { margin-bottom: 0; color: #77746b; }
+
+.target-card {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 34px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.target-glyph {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid #171714;
+  border-radius: 18px;
+  background: #fff;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 104px;
+  line-height: 1;
+}
+
+.target-info h2 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 36px;
+  font-weight: 500;
+}
+
+.ids-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+  color: #747067;
+}
+
+.ids-line code {
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(23,23,20,.06);
+  color: #171714;
+  font-size: 15px;
+}
+
+.recommendation {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: flex-end;
+  margin: 28px 0 42px;
+  padding: 24px 26px;
+  border-radius: 16px;
+  background: #171714;
+  color: #f2f0e9;
+}
+
+.recommendation .section-kicker { color: #aaa79e; }
+
+.recipe {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.recipe i {
+  color: #77746b;
+  font-style: normal;
+}
+
+.recipe-part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.recipe-part b {
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 40px;
+  font-weight: 500;
+}
+
+.recipe-part small {
+  color: #bdb9af;
+  font-size: 11px;
+}
+
+.recipe-tip {
+  max-width: 360px;
+  margin: 0;
+  color: #aaa79e;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.components {
+  display: grid;
+  gap: 16px;
+}
+
+.component-card {
+  padding: 26px;
+  border: 1px solid rgba(23,23,20,.14);
+  border-radius: 18px;
+  background: rgba(255,255,255,.44);
+}
+
+.component-card > header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.component-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.component-glyph {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: #fff;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 34px;
+  box-shadow: inset 0 0 0 1px rgba(23,23,20,.1);
+}
+
+.donors {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.donor {
+  min-height: 116px;
+  padding: 12px 8px 10px;
+  border: 1px solid rgba(23,23,20,.14);
+  border-radius: 12px;
+  background: #f7f5ef;
+  cursor: pointer;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+
+.donor:hover {
+  transform: translateY(-2px);
+  border-color: rgba(23,23,20,.5);
+}
+
+.donor.is-active {
+  background: #fff;
+  border-color: #171714;
+  box-shadow: inset 0 0 0 1px #171714;
+}
+
+.donor b {
+  display: block;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 40px;
+  font-weight: 500;
+}
+
+.donor small {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.donor small span {
+  padding: 2px 5px;
+  border-radius: 99px;
+  background: rgba(23,23,20,.06);
+  color: #77746b;
+  font-size: 9px;
+}
+
+.donor small .font-hit {
+  background: #dfe8dc;
+  color: #3e5d37;
+}
+
+.donor small .font-miss {
+  color: #aaa59b;
+  text-decoration: line-through;
+}
+
+.more-button {
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #171714;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.no-donors {
+  margin: 0;
+  color: #77746b;
+  font-size: 13px;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 70px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(23,23,20,.14);
+  color: #8a867c;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+footer p { margin: 0; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 760px) {
+  .shell { width: min(100% - 24px, 1120px); }
+  .masthead { height: 72px; }
+  .hero { padding: 58px 0 46px; }
+  .hero h1 { font-size: 44px; }
+  .query-row { flex-direction: column; }
+  .font-button { min-height: 54px; }
+  .target-card { grid-template-columns: 112px 1fr; gap: 20px; }
+  .target-glyph { font-size: 66px; }
+  .target-info h2 { font-size: 28px; }
+  .recommendation { align-items: flex-start; flex-direction: column; }
+  .recipe { flex-wrap: wrap; }
+  .recipe-part small { display: none; }
+  .donors { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  footer { flex-direction: column; }
+}
