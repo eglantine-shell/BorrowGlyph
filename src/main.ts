@@ -314,6 +314,23 @@ function donorMarkup(candidate: RankedDonor, index: number, nodeKey: string) {
   `
 }
 
+function variantGroups(candidates: RankedDonor[]) {
+  const groups = [
+    { key: 'shared', label: '繁简共用' },
+    { key: 'simplified', label: '简体' },
+    { key: 'traditional', label: '繁体' },
+  ] as const
+
+  return groups
+    .map((group) => ({
+      ...group,
+      candidates: candidates.filter(
+        (candidate) => (candidate.variant ?? 'shared') === group.key,
+      ),
+    }))
+    .filter((group) => group.candidates.length)
+}
+
 function collectRecipeNodes(nodes: ComponentSearchNode[]): ComponentSearchNode[] {
   const result: ComponentSearchNode[] = []
 
@@ -362,10 +379,6 @@ function recommendationMarkup(nodes: ComponentSearchNode[]) {
 }
 
 function renderSearchNode(node: ComponentSearchNode, label: string): string {
-  const shown = expanded.has(node.key)
-    ? node.candidates
-    : node.candidates.slice(0, 6)
-
   const glyphClass = IDC_ARITY[Array.from(node.component)[0] ?? '']
     ? 'component-glyph is-ids'
     : 'component-glyph'
@@ -381,12 +394,39 @@ function renderSearchNode(node: ComponentSearchNode, label: string): string {
           </div>
         </header>
 
-        <div class="donors">
-          ${shown.map((candidate, index) => donorMarkup(candidate, index, node.key)).join('')}
+        <div class="variant-groups">
+          ${variantGroups(node.candidates).map((group) => {
+            const shown = expanded.has(node.key)
+              ? group.candidates
+              : group.candidates.slice(0, 6)
+
+            return `
+              <section class="variant-group">
+                <div class="variant-heading">
+                  <span>${group.label}</span>
+                  <small>${group.candidates.length}</small>
+                </div>
+                <div class="donors">
+                  ${shown.map((candidate) =>
+                    donorMarkup(
+                      candidate,
+                      node.candidates.indexOf(candidate),
+                      node.key,
+                    ),
+                  ).join('')}
+                </div>
+              </section>
+            `
+          }).join('')}
         </div>
 
-        ${node.candidates.length > 6
-          ? `<button class="more-button" type="button" data-expand="${escapeHtml(node.key)}">${expanded.has(node.key) ? '收起' : `更多候选 · ${node.candidates.length}`}</button>`
+        ${node.candidates.some((candidate) => {
+          const variant = candidate.variant ?? 'shared'
+          return node.candidates.filter(
+            (item) => (item.variant ?? 'shared') === variant,
+          ).length > 6
+        })
+          ? `<button class="more-button" type="button" data-expand="${escapeHtml(node.key)}">${expanded.has(node.key) ? '收起' : '更多候选'}</button>`
           : ''}
       </section>
     `
@@ -513,10 +553,7 @@ function renderResult(
       const node = nodeByKey.get(nodeKey)
       if (!node) return
 
-      const visibleSet = expanded.has(nodeKey)
-        ? node.candidates
-        : node.candidates.slice(0, 6)
-      const picked = visibleSet[candidateIndex]
+      const picked = node.candidates[candidateIndex]
       if (!picked) return
 
       selected.set(nodeKey, picked)
