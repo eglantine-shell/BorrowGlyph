@@ -464,3 +464,62 @@ footer p { margin: 0; }
   .donors { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   footer { flex-direction: column; }
 }
+
+
+.component-card.is-nested {
+  background: rgba(255,255,255,.7);
+}
+
+.recursive-card {
+  border-style: dashed;
+}
+
+.split-note {
+  margin: -4px 0 20px 82px;
+  color: #77746b;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.split-note strong {
+  color: #171714;
+  font-weight: 650;
+}
+
+.nested-components {
+  display: grid;
+  gap: 12px;
+  margin-left: 82px;
+}
+
+.nested-components .component-card {
+  padding: 20px;
+}
+
+.nested-components .component-card > header {
+  margin-bottom: 18px;
+}
+
+.component-glyph.is-ids {
+  padding: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 16px;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.unresolved-card {
+  opacity: .78;
+}
+
+.recipe-unresolved {
+  opacity: .6;
+}
+
+@media (max-width: 760px) {
+  .split-note,
+  .nested-components {
+    margin-left: 0;
+  }
+}
