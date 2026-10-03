@@ -31,10 +31,19 @@ function scoreDonor(
   const exactPosition = donor.slot === desired && donor.depth === 1
   const sameAxis = axisOf(donor.slot) === axisOf(desired)
   const fontPenalty = inFont === false ? 5000 : 0
-  const positionPenalty = exactPosition ? 0 : sameAxis ? 800 : 1800
-  const depthPenalty = Math.max(0, donor.depth - 1) * 220
   const tierPenalty = Math.max(0, donor.tier - 1) * 90
   const orderPenalty = Math.min(donor.order, 99999) / 10000
+
+  if (donor.isSelf) {
+    return {
+      score: fontPenalty + tierPenalty + orderPenalty - 120,
+      exactPosition: false,
+      sameAxis: false,
+    }
+  }
+
+  const positionPenalty = exactPosition ? 0 : sameAxis ? 800 : 1800
+  const depthPenalty = Math.max(0, donor.depth - 1) * 220
 
   return {
     score:
