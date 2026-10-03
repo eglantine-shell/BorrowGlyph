@@ -218,26 +218,40 @@ function buildSearchNode(
   ancestors = new Set<string>(),
 ): ComponentSearchNode {
   const visualOverride = VISUAL_DECOMPOSITIONS[component]
-  const candidates = visualOverride
-    ? []
-    : getCandidatesForSlot(
-        data,
-        currentChar,
-        component,
-        desiredSlot,
-        fontFilter?.supportsGlyph,
-      )
+  const directCandidates = getCandidatesForSlot(
+    data,
+    currentChar,
+    component,
+    desiredSlot,
+    fontFilter?.supportsGlyph,
+  )
+
+  // 人工视觉拆分只在“正常整块 donor 不够好用”时兜底：
+  // 必须至少有一个同结构位置、且不是生僻字的 donor，才保留直接截取方案。
+  // 例如：
+  // - 髮 的「犮」：茇虽同位但生僻，拔虽常用但异位 → 改走 友 + 丶
+  // - 茇 的「犮」：髮是同位且常用的繁体字 → 直接取髮中的犮
+  const hasGoodDirectCandidate = directCandidates.some(
+    (candidate) =>
+      candidate.exactPosition &&
+      candidate.tier <= 2 &&
+      candidate.inFont !== false,
+  )
+
+  const useVisualOverride = Boolean(
+    visualOverride && !hasGoodDirectCandidate,
+  )
 
   const node: ComponentSearchNode = {
     key,
     component,
     desiredSlot,
-    candidates,
+    candidates: useVisualOverride ? [] : directCandidates,
     children: [],
     depth,
   }
 
-  if (candidates.length || depth >= 4 || ancestors.has(component)) {
+  if (node.candidates.length || depth >= 4 || ancestors.has(component)) {
     return node
   }
 
