@@ -47,6 +47,7 @@ const IDC_ARITY: Record<string, number> = {
 
 let currentChar = ''
 let fontFilter: FontFilter | null = null
+let variantPreference: 'all' | 'simplified' | 'traditional' = 'all'
 let expanded = new Set<string>()
 let selected = new Map<string, RankedDonor>()
 
@@ -79,6 +80,12 @@ app.innerHTML = `
           <input id="font-input" type="file" accept=".ttf,.otf,.woff,.woff2" />
           <span id="font-label">＋ 载入字体 <em>可选</em></span>
         </label>
+
+        <div class="variant-filter" role="group" aria-label="候选繁简范围">
+          <button type="button" class="is-active" data-variant="all" aria-pressed="true">不限</button>
+          <button type="button" data-variant="simplified" aria-pressed="false">简体</button>
+          <button type="button" data-variant="traditional" aria-pressed="false">繁体</button>
+        </div>
       </div>
       <p id="font-note" class="font-note">不载入字体也可以直接查询。</p>
     </section>
@@ -102,6 +109,7 @@ const searchButton = document.querySelector<HTMLButtonElement>('#search-button')
 const fontInput = document.querySelector<HTMLInputElement>('#font-input')!
 const fontLabel = document.querySelector<HTMLSpanElement>('#font-label')!
 const fontNote = document.querySelector<HTMLParagraphElement>('#font-note')!
+const variantButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-variant]')]
 const result = document.querySelector<HTMLElement>('#result')!
 const meta = document.querySelector<HTMLParagraphElement>('.data-meta')!
 
@@ -122,6 +130,15 @@ function escapeHtml(value: string) {
     "'": '&#039;',
   }
   return value.replace(/[&<>"']/g, (ch) => entities[ch] ?? ch)
+}
+
+function filterByVariant(candidates: RankedDonor[]) {
+  if (variantPreference === 'all') return candidates
+
+  return candidates.filter((candidate) => {
+    const variant = candidate.variant ?? 'shared'
+    return variant === 'shared' || variant === variantPreference
+  })
 }
 
 function tokenizeIds(ids: string) {
@@ -218,12 +235,14 @@ function buildSearchNode(
   ancestors = new Set<string>(),
 ): ComponentSearchNode {
   const visualOverride = VISUAL_DECOMPOSITIONS[component]
-  const directCandidates = getCandidatesForSlot(
-    data,
-    currentChar,
-    component,
-    desiredSlot,
-    fontFilter?.supportsGlyph,
+  const directCandidates = filterByVariant(
+    getCandidatesForSlot(
+      data,
+      currentChar,
+      component,
+      desiredSlot,
+      fontFilter?.supportsGlyph,
+    ),
   )
 
   // 人工视觉拆分只在“正常整块 donor 不够好用”时兜底：
@@ -314,23 +333,6 @@ function donorMarkup(candidate: RankedDonor, index: number, nodeKey: string) {
   `
 }
 
-function variantGroups(candidates: RankedDonor[]) {
-  const groups = [
-    { key: 'shared', label: '繁简共用' },
-    { key: 'simplified', label: '简体' },
-    { key: 'traditional', label: '繁体' },
-  ] as const
-
-  return groups
-    .map((group) => ({
-      ...group,
-      candidates: candidates.filter(
-        (candidate) => (candidate.variant ?? 'shared') === group.key,
-      ),
-    }))
-    .filter((group) => group.candidates.length)
-}
-
 function collectRecipeNodes(nodes: ComponentSearchNode[]): ComponentSearchNode[] {
   const result: ComponentSearchNode[] = []
 
@@ -379,6 +381,10 @@ function recommendationMarkup(nodes: ComponentSearchNode[]) {
 }
 
 function renderSearchNode(node: ComponentSearchNode, label: string): string {
+  const shown = expanded.has(node.key)
+    ? node.candidates
+    : node.candidates.slice(0, 6)
+
   const glyphClass = IDC_ARITY[Array.from(node.component)[0] ?? '']
     ? 'component-glyph is-ids'
     : 'component-glyph'
@@ -394,39 +400,12 @@ function renderSearchNode(node: ComponentSearchNode, label: string): string {
           </div>
         </header>
 
-        <div class="variant-groups">
-          ${variantGroups(node.candidates).map((group) => {
-            const shown = expanded.has(node.key)
-              ? group.candidates
-              : group.candidates.slice(0, 6)
-
-            return `
-              <section class="variant-group">
-                <div class="variant-heading">
-                  <span>${group.label}</span>
-                  <small>${group.candidates.length}</small>
-                </div>
-                <div class="donors">
-                  ${shown.map((candidate) =>
-                    donorMarkup(
-                      candidate,
-                      node.candidates.indexOf(candidate),
-                      node.key,
-                    ),
-                  ).join('')}
-                </div>
-              </section>
-            `
-          }).join('')}
+        <div class="donors">
+          ${shown.map((candidate, index) => donorMarkup(candidate, index, node.key)).join('')}
         </div>
 
-        ${node.candidates.some((candidate) => {
-          const variant = candidate.variant ?? 'shared'
-          return node.candidates.filter(
-            (item) => (item.variant ?? 'shared') === variant,
-          ).length > 6
-        })
-          ? `<button class="more-button" type="button" data-expand="${escapeHtml(node.key)}">${expanded.has(node.key) ? '收起' : '更多候选'}</button>`
+        ${node.candidates.length > 6
+          ? `<button class="more-button" type="button" data-expand="${escapeHtml(node.key)}">${expanded.has(node.key) ? '收起' : `更多候选 · ${node.candidates.length}`}</button>`
           : ''}
       </section>
     `
@@ -553,7 +532,10 @@ function renderResult(
       const node = nodeByKey.get(nodeKey)
       if (!node) return
 
-      const picked = node.candidates[candidateIndex]
+      const visibleSet = expanded.has(nodeKey)
+        ? node.candidates
+        : node.candidates.slice(0, 6)
+      const picked = visibleSet[candidateIndex]
       if (!picked) return
 
       selected.set(nodeKey, picked)
@@ -583,6 +565,22 @@ function submit() {
 searchButton.addEventListener('click', submit)
 input.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.isComposing) submit()
+})
+
+variantButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const next = button.dataset.variant
+    if (next !== 'all' && next !== 'simplified' && next !== 'traditional') return
+
+    variantPreference = next
+    variantButtons.forEach((item) => {
+      const active = item.dataset.variant === variantPreference
+      item.classList.toggle('is-active', active)
+      item.setAttribute('aria-pressed', String(active))
+    })
+
+    if (currentChar) render(currentChar)
+  })
 })
 
 fontInput.addEventListener('change', async () => {
