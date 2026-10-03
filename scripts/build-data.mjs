@@ -14,6 +14,16 @@ const IDC_ARITY = {
 
 const IDC = new Set(Object.keys(IDC_ARITY))
 
+const IDS_OVERRIDES = {
+  '珣': '⿰王旬',
+  '珍': '⿰王㐱',
+  '询': '⿰讠旬',
+  '髮': '⿱髟犮',
+  '髡': '⿱髟兀',
+  '拔': '⿰扌犮',
+  '茇': '⿱艹犮',
+}
+
 async function fetchText(url) {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`${response.status} while fetching ${url}`)
@@ -218,6 +228,18 @@ async function main() {
     ])
 
     const parsed = parseIdsFile(idsText)
+
+    for (const [char, ids] of Object.entries(IDS_OVERRIDES)) {
+      const tree = parseNode(tokenize(ids))
+      if (!tree) continue
+      parsed[char] = {
+        ids: serialize(tree),
+        operator: tree.token,
+        components: tree.children.map(serialize),
+        tree,
+      }
+    }
+
     const standard = JSON.parse(standardText)
     const traditionalMap = JSON.parse(traditionalText)
     const ranking = commonRanking(standard, traditionalMap)
