@@ -78,13 +78,14 @@ function firstCharacter(value: string) {
 }
 
 function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (ch) => ({
+  const entities: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
     "'": '&#039;',
-  })[ch]!)
+  }
+  return value.replace(/[&<>"']/g, (ch) => entities[ch] ?? ch)
 }
 
 function donorMarkup(candidate: RankedDonor, index: number, componentIndex: number) {
