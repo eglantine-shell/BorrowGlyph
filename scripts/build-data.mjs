@@ -161,36 +161,47 @@ function buildDonors(parsed, ranking) {
 
   const donors = Object.fromEntries([...componentSet].map((component) => [component, []]))
 
+  function indexTree(node, char, common, path = []) {
+    node.children.forEach((child, index) => {
+      const nextPath = [...path, `${node.token}:${index}`]
+      const component = serialize(child)
+
+      if (componentSet.has(component)) {
+        donors[component].push({
+          char,
+          slot: nextPath[0],
+          depth: nextPath.length,
+          tier: common.tier,
+          order: common.order,
+        })
+      }
+
+      indexTree(child, char, common, nextPath)
+    })
+  }
+
   for (const [char, glyph] of Object.entries(parsed)) {
     const common = ranking.get(char) ?? {
       tier: 4,
       order: 100000 + (char.codePointAt(0) ?? 0),
     }
-
-    for (const component of componentSet) {
-      if (!glyph.ids.includes(component)) continue
-      const occurrences = collectOccurrences(glyph.tree, component, glyph.operator)
-      if (!occurrences.length) continue
-
-      const best = occurrences.sort((a, b) => a.depth - b.depth)[0]
-      donors[component].push({
-        char,
-        slot: best.slot,
-        depth: best.depth,
-        tier: common.tier,
-        order: common.order,
-      })
-    }
+    indexTree(glyph.tree, char, common)
   }
 
   for (const [component, list] of Object.entries(donors)) {
-    list.sort((a, b) =>
+    const bestByChar = new Map()
+    for (const item of list) {
+      const previous = bestByChar.get(item.char)
+      if (!previous || item.depth < previous.depth) bestByChar.set(item.char, item)
+    }
+
+    const ranked = [...bestByChar.values()].sort((a, b) =>
       a.tier - b.tier ||
       a.order - b.order ||
       a.depth - b.depth ||
       a.char.localeCompare(b.char, 'zh-Hans-CN')
     )
-    donors[component] = list.slice(0, 48)
+    donors[component] = ranked.slice(0, 48)
   }
 
   return donors
