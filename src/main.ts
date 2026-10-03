@@ -35,7 +35,7 @@ app.innerHTML = `
       <div class="query-row">
         <label class="query-box">
           <span class="sr-only">输入一个汉字</span>
-          <input id="char-input" maxlength="2" autocomplete="off" placeholder="例如：珣" />
+          <input id="char-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如：珣" />
           <button id="search-button" type="button">找字</button>
         </label>
 
@@ -258,11 +258,7 @@ function submit() {
 
 searchButton.addEventListener('click', submit)
 input.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') submit()
-})
-input.addEventListener('input', () => {
-  const char = firstCharacter(input.value)
-  if (Array.from(input.value).length > 1) input.value = char
+  if (event.key === 'Enter' && !event.isComposing) submit()
 })
 
 fontInput.addEventListener('change', async () => {
