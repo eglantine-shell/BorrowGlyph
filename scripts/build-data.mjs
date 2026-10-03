@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
-const OUT = resolve('src/generated/data.json')
+const OUT = resolve('public/data.json')
 const IDS_URL = 'https://raw.githubusercontent.com/hfhchan/ids/main/release/ids-20240112.txt'
 const STANDARD_URL = 'https://raw.githubusercontent.com/jaywcjlove/table-of-general-standard-chinese-characters/main/data/characters.min.json'
 const TRAD_URL = 'https://raw.githubusercontent.com/jaywcjlove/table-of-general-standard-chinese-characters/main/data/traditional.convert.json'
@@ -158,20 +158,6 @@ function commonRanking(standard, traditionalMap) {
   return ranking
 }
 
-function collectOccurrences(node, wanted, rootOperator, path = [], output = []) {
-  node.children.forEach((child, index) => {
-    const nextPath = [...path, `${node.token}:${index}`]
-    if (serialize(child) === wanted) {
-      output.push({
-        slot: nextPath[0] ?? `${rootOperator}:${index}`,
-        depth: nextPath.length,
-      })
-    }
-    collectOccurrences(child, wanted, rootOperator, nextPath, output)
-  })
-  return output
-}
-
 function buildVariantClassifier(traditionalMap) {
   const traditionalForms = new Set()
   const simplifiedForms = new Set()
@@ -259,9 +245,22 @@ function buildDonors(parsed, ranking, variantOf) {
           }
         : null
 
+    const retained = ['shared', 'simplified', 'traditional']
+      .flatMap((variant) =>
+        ranked
+          .filter((item) => (item.variant ?? 'shared') === variant)
+          .slice(0, 24),
+      )
+      .sort((a, b) =>
+        a.tier - b.tier ||
+        a.order - b.order ||
+        a.depth - b.depth ||
+        a.char.localeCompare(b.char, 'zh-Hans-CN')
+      )
+
     donors[component] = selfDonor
-      ? [selfDonor, ...ranked.filter((item) => item.char !== component)].slice(0, 48)
-      : ranked.slice(0, 48)
+      ? [selfDonor, ...retained.filter((item) => item.char !== component)]
+      : retained
   }
 
   return donors
@@ -313,6 +312,7 @@ async function main() {
         idsSource: 'hfhchan/ids release ids-20240112 (MIT)',
         commonSource: 'jaywcjlove/table-of-general-standard-chinese-characters (MIT)',
         glyphCount: Object.keys(glyphs).length,
+        donorLimitPerVariant: 24,
       },
       glyphs,
       donors,
