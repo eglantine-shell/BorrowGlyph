@@ -523,3 +523,33 @@ footer p { margin: 0; }
     margin-left: 0;
   }
 }
+
+
+.variant-groups {
+  display: grid;
+  gap: 18px;
+}
+
+.variant-group {
+  display: grid;
+  gap: 10px;
+}
+
+.variant-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: #6f6b62;
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+
+.variant-heading span {
+  font-weight: 650;
+  color: #34322d;
+}
+
+.variant-heading small {
+  font-size: 11px;
+  color: #9a958b;
+}
