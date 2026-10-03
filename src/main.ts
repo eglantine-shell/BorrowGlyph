@@ -7,6 +7,7 @@ import {
   structureLabel,
 } from './search'
 import type { GlyphData, RankedDonor } from './types'
+import { VISUAL_DECOMPOSITIONS } from './visual-decompositions'
 
 const data = rawData as GlyphData
 
@@ -25,6 +26,7 @@ type ComponentSearchNode = {
   candidates: RankedDonor[]
   children: ComponentSearchNode[]
   splitOperator?: string
+  splitSource?: 'ids' | 'visual'
   depth: number
 }
 
@@ -172,12 +174,25 @@ function serializeIdsNode(node: IdsNode): string {
 }
 
 function decompositionOf(component: string) {
+  const visual = VISUAL_DECOMPOSITIONS[component]
+  if (visual) {
+    return {
+      operator: visual.operator,
+      source: 'visual' as const,
+      components: visual.components,
+    }
+  }
+
   if (IDC_ARITY[Array.from(component)[0] ?? '']) {
     const tree = parseIdsNode(tokenizeIds(component))
     if (tree && IDC_ARITY[tree.token] && tree.children.length) {
       return {
         operator: tree.token,
-        components: tree.children.map(serializeIdsNode),
+        source: 'ids' as const,
+        components: tree.children.map((child, index) => ({
+          char: serializeIdsNode(child),
+          desiredSlot: `${tree.token}:${index}`,
+        })),
       }
     }
   }
@@ -187,7 +202,11 @@ function decompositionOf(component: string) {
 
   return {
     operator: glyph.operator,
-    components: glyph.components,
+    source: 'ids' as const,
+    components: glyph.components.map((char, index) => ({
+      char,
+      desiredSlot: `${glyph.operator}:${index}`,
+    })),
   }
 }
 
@@ -198,13 +217,16 @@ function buildSearchNode(
   depth = 0,
   ancestors = new Set<string>(),
 ): ComponentSearchNode {
-  const candidates = getCandidatesForSlot(
-    data,
-    currentChar,
-    component,
-    desiredSlot,
-    fontFilter?.supportsGlyph,
-  )
+  const visualOverride = VISUAL_DECOMPOSITIONS[component]
+  const candidates = visualOverride
+    ? []
+    : getCandidatesForSlot(
+        data,
+        currentChar,
+        component,
+        desiredSlot,
+        fontFilter?.supportsGlyph,
+      )
 
   const node: ComponentSearchNode = {
     key,
@@ -226,10 +248,11 @@ function buildSearchNode(
   nextAncestors.add(component)
 
   node.splitOperator = decomposition.operator
+  node.splitSource = decomposition.source
   node.children = decomposition.components.map((child, index) =>
     buildSearchNode(
-      child,
-      `${decomposition.operator}:${index}`,
+      child.char,
+      child.desiredSlot,
       `${key}.${index}`,
       depth + 1,
       nextAncestors,
@@ -357,6 +380,9 @@ function renderSearchNode(node: ComponentSearchNode, label: string): string {
 
   if (node.children.length) {
     const splitNames = node.children.map((child) => child.component).join(' ＋ ')
+    const splitNote = node.splitSource === 'visual'
+      ? `人工视觉拆分：<strong>${escapeHtml(node.component)} → ${escapeHtml(splitNames)}</strong>。`
+      : `找不到可直接借用的「${escapeHtml(node.component)}」，继续拆为 <strong>${escapeHtml(splitNames)}</strong>。`
 
     return `
       <section class="component-card recursive-card ${node.depth ? 'is-nested' : ''}">
@@ -368,10 +394,7 @@ function renderSearchNode(node: ComponentSearchNode, label: string): string {
           </div>
         </header>
 
-        <p class="split-note">
-          找不到可直接借用的「${escapeHtml(node.component)}」，继续拆为
-          <strong>${escapeHtml(splitNames)}</strong>。
-        </p>
+        <p class="split-note">${splitNote}</p>
 
         <div class="nested-components">
           ${node.children
