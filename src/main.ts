@@ -254,17 +254,19 @@ function buildSearchNode(
     ),
   )
 
-  // 人工视觉拆分只在“正常整块 donor 不够好用”时兜底：
-  // 必须至少有一个同结构位置、且不是生僻字的 donor，才保留直接截取方案。
-  // 例如：
-  // - 髮 的「犮」：茇虽同位但生僻，拔虽常用但异位 → 改走 友 + 丶
-  // - 茇 的「犮」：髮是同位且常用的繁体字 → 直接取髮中的犮
-  const hasGoodDirectCandidate = directCandidates.some(
-    (candidate) =>
-      candidate.exactPosition &&
+  // 人工视觉拆分只在“正常整块 donor 不够好用”时兜底。
+  // 本字如果已被当前字体明确收录，直接使用本字；未载入字体时，
+  // 常用本字也可以直接使用。除此之外，再看是否有同位且不生僻的 donor。
+  const hasGoodDirectCandidate = directCandidates.some((candidate) => {
+    if (candidate.isSelf) {
+      return candidate.inFont === true ||
+        (candidate.inFont === null && candidate.tier <= 2)
+    }
+
+    return candidate.exactPosition &&
       candidate.tier <= 2 &&
-      candidate.inFont !== false,
-  )
+      candidate.inFont !== false
+  })
 
   const useVisualOverride = Boolean(
     visualOverride && !hasGoodDirectCandidate,
