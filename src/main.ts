@@ -154,6 +154,15 @@ function tokenizeIds(ids: string) {
       }
     }
 
+    if (ids[i] === '{') {
+      const end = ids.indexOf('}', i)
+      if (end !== -1) {
+        tokens.push(ids.slice(i, end + 1))
+        i = end + 1
+        continue
+      }
+    }
+
     const codePoint = ids.codePointAt(i)
     if (codePoint === undefined) break
 
@@ -313,11 +322,13 @@ function donorMarkup(candidate: RankedDonor, index: number, nodeKey: string) {
       : fontFilter && candidate.inFont === false
         ? '<span class="font-miss">字体缺字</span>'
         : ''
-  const positionBadge = candidate.exactPosition
-    ? '<span>同位</span>'
-    : candidate.sameAxis
-      ? '<span>近似位置</span>'
-      : '<span>异位</span>'
+  const positionBadge = candidate.isSelf
+    ? '<span>本字</span>'
+    : candidate.exactPosition
+      ? '<span>同位</span>'
+      : candidate.sameAxis
+        ? '<span>近似位置</span>'
+        : '<span>异位</span>'
 
   return `
     <button
