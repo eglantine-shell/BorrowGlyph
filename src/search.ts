@@ -48,18 +48,14 @@ function scoreDonor(
   }
 }
 
-export function getCandidates(
+export function getCandidatesForSlot(
   data: GlyphData,
   target: string,
   component: string,
-  componentIndex: number,
+  wanted: string,
   supportsGlyph?: (char: string) => boolean,
   limit = 24,
 ): RankedDonor[] {
-  const glyph = data.glyphs[target]
-  if (!glyph) return []
-
-  const wanted = desiredSlot(glyph.operator, componentIndex)
   const donors = data.donors[component] ?? []
 
   return donors
@@ -77,6 +73,27 @@ export function getCandidates(
     })
     .sort((a, b) => a.score - b.score || a.char.localeCompare(b.char, 'zh-Hans-CN'))
     .slice(0, limit)
+}
+
+export function getCandidates(
+  data: GlyphData,
+  target: string,
+  component: string,
+  componentIndex: number,
+  supportsGlyph?: (char: string) => boolean,
+  limit = 24,
+): RankedDonor[] {
+  const glyph = data.glyphs[target]
+  if (!glyph) return []
+
+  return getCandidatesForSlot(
+    data,
+    target,
+    component,
+    desiredSlot(glyph.operator, componentIndex),
+    supportsGlyph,
+    limit,
+  )
 }
 
 export function positionName(slot: string, component: string) {
