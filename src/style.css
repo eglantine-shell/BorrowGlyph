@@ -1,5 +1,5 @@
 :root {
-  --glyph-font: "Songti SC", "STSong",
+  --system-glyph-font: "Songti SC", "STSong",
     "Noto Serif CJK SC", "Noto Serif SC",
     "Source Han Serif SC", "Source Han Serif CN",
     "PingFang SC", "PingFang TC", "PingFang HK",
@@ -8,6 +8,7 @@
     "Microsoft YaHei", "SimSun-ExtB", "MingLiU-ExtB",
     "BabelStone Han", "HanaMinA", "HanaMinB",
     serif;
+  --glyph-font: var(--system-glyph-font);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   color: #171714;
   background: #f2f0e9;
