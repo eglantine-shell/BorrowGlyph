@@ -67,8 +67,8 @@ app.innerHTML = `
 
     <section class="hero">
       <p class="eyebrow">字体缺字拼合辅助</p>
-      <h1>缺哪个字，就去别的字里借。</h1>
-      <p class="intro">输入一个汉字，按结构位置寻找更适合截取的常见字。字体文件可选；上传后只在浏览器本地读取，并优先显示该字体已经收录的候选字。</p>
+      <h1>缺的部首，该去哪个字里借？</h1>
+      <p class="intro">针对字体缺字情况，输入需要拼合的字，寻找适宜截取的字，含同一结构位置部件的常见字优先。可以上传当前使用的字体文件，以定位该字体已经收录的候选字；文件只在浏览器本地读取。</p>
 
       <div class="query-row">
         <label class="query-box">
@@ -88,18 +88,18 @@ app.innerHTML = `
           <button type="button" data-variant="traditional" aria-pressed="false">繁体</button>
         </div>
       </div>
-      <p id="font-note" class="font-note">不载入字体也可以直接查询。</p>
+      <p id="font-note" class="font-note">不载入字体也可以直接查询，但无法确保候选项可以在当前使用字体内找到。</p>
     </section>
 
     <section id="result" class="result" aria-live="polite">
       <div class="empty-state">
-        <span>珣</span>
-        <p>试试「珣」或「髮」</p>
+        <span>髮</span>
+        <p>如果是「珣」，大概很容易想到怎么拼吧……那「髮」呢？</p>
       </div>
     </section>
 
     <footer>
-      <p>IDS 数据用于结构匹配；候选常用度以《通用规范汉字表》为基础排序。</p>
+      <p>候选常用度以《通用规范汉字表》为基础排序。</p>
       <p class="data-meta"></p>
     </footer>
   </div>
@@ -393,7 +393,7 @@ function recommendationMarkup(nodes: ComponentSearchNode[]) {
         <p class="section-kicker">当前拼合方案</p>
         <div class="recipe">${parts.join('<i>＋</i>')}</div>
       </div>
-      <p class="recipe-tip">找不到整块 donor 时会自动继续拆分。实际拼接仍需根据字体字形调整裁切、缩放和位置。</p>
+      <p class="recipe-tip">实际拼接时仍需根据字体字形调整。</p>
     </aside>
   `
 }
@@ -432,8 +432,8 @@ function renderSearchNode(node: ComponentSearchNode, label: string): string {
   if (node.children.length) {
     const splitNames = node.children.map((child) => child.component).join(' ＋ ')
     const splitNote = node.splitSource === 'visual'
-      ? `人工视觉拆分：<strong>${escapeHtml(node.component)} → ${escapeHtml(splitNames)}</strong>。`
-      : `找不到可直接借用的「${escapeHtml(node.component)}」，继续拆为 <strong>${escapeHtml(splitNames)}</strong>。`
+      ? '人工视觉拆分特例。'
+      : `继续拆为 <strong>${escapeHtml(splitNames)}</strong>。`
 
     return `
       <section class="component-card recursive-card ${node.depth ? 'is-nested' : ''}">
@@ -467,7 +467,7 @@ function renderSearchNode(node: ComponentSearchNode, label: string): string {
           <h3>${escapeHtml(positionName(node.desiredSlot, node.component))}</h3>
         </div>
       </header>
-      <p class="no-donors">已经拆到当前数据可识别的最深层，仍未找到可用候选。</p>
+      <p class="no-donors">未能找到可用候选。</p>
     </section>
   `
 }
@@ -622,7 +622,7 @@ fontInput.addEventListener('change', async () => {
       `"${fontFilter.family}", var(--system-glyph-font)`,
     )
     fontLabel.innerHTML = `${escapeHtml(fontFilter.fileName)} <em>已载入</em>`
-    fontNote.textContent = '字体仅在当前浏览器内解析，不会上传。字体中存在的候选优先；其余只保留当前系统能正常显示的字。'
+    fontNote.textContent = '字体仅在当前浏览器内解析。字体中存在的候选优先。'
     if (currentChar) render(currentChar)
   } catch (error) {
     console.error(error)
