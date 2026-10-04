@@ -96,3 +96,8 @@ npm run build
 ## 部署
 
 仓库包含 GitHub Pages Actions workflow。启用仓库的 Pages（Source 选择 **GitHub Actions**）后，推送到 `main` 会自动刷新数据、运行回归测试、构建并部署。
+
+
+## 开源许可
+
+BorrowGlyph 以 [MIT License](./LICENSE) 开源。
